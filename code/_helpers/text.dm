@@ -334,10 +334,14 @@ proc/TextPreview(var/string,var/len=40)
 /proc/copytext_preserve_html(var/text, var/first, var/last)
 	return html_encode(copytext(html_decode(text), first, last))
 
+//For generating neat chat tag-images
+//The icon var could be local in the proc, but it's a waste of resources
+//	to always create it and then throw it out.
+/var/icon/text_tag_icons = new('./icons/chattags.dmi')
 /proc/create_text_tag(var/tagname, var/tagdesc = tagname, var/client/C = null)
 	if(!(C && C.get_preference_value(/datum/client_preference/chat_tags) == GLOB.PREF_SHOW))
 		return tagdesc
-	return "<IMG src='\ref['./icons/chattags.dmi']' class='text_tag' iconstate='[tagname]'" + (tagdesc ? " alt='[tagdesc]'" : "") + ">"
+	return "<IMG src='\ref[text_tag_icons]' class='text_tag' iconstate='[tagname]'" + (tagdesc ? " alt='[tagdesc]'" : "") + ">"
 
 /proc/contains_az09(var/input)
 	for(var/i=1, i<=length(input), i++)
@@ -429,7 +433,18 @@ proc/TextPreview(var/string,var/len=40)
 	text = replacetext(text, "\[fontblue\]", "<font color=\"blue\">")//</font> to pass travis html tag integrity check
 	text = replacetext(text, "\[fontgreen\]", "<font color=\"green\">")
 	text = replacetext(text, "\[/font\]", "</font>")
+	text = redact(text)
 	return pencode2html(text)
+
+/proc/redact(var/text)
+	var/regex/toReplace = new(@"(?<=\x5Bredacted\x5D)(.+?)(?=\x5B\x2Fredacted\x5D)", "g")
+
+	text = replacetext(text, toReplace, "R e d a c t e d")
+
+	text = replacetext(text, "\[redacted\]", "<span class=\"redacted\">")
+	text = replacetext(text, "\[/redacted\]", "</span><!-- redacted -->")
+
+	return text
 
 //Will kill most formatting; not recommended.
 /proc/html2pencode(t)
@@ -473,6 +488,8 @@ proc/TextPreview(var/string,var/len=40)
 	t = replacetext(t, "<img src = xynlogo.png>", "\[xynlogo\]")
 	t = replacetext(t, "<img src = sfplogo.png>", "\[sfplogo\]")
 	t = replacetext(t, "<span class=\"paper_field\"></span>", "\[field\]")
+	t = replacetext(t, "<span class=\"redacted\">", "\[redacted\]")
+	t = replacetext(t, "</span><!-- redacted -->", "\[/redacted\]")
 	t = strip_html_properly(t)
 	return t
 
